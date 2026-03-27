@@ -1,0 +1,8 @@
+/target/
+/dist/
+/.build/
+/.DS_Store
+/meeting-artifacts/
+/live-smoke-artifacts/
+/native-smoke-artifacts/
+/tmp/
