@@ -1016,10 +1016,14 @@ fn build_devices_report(config: &EffectiveConfig) -> Result<DevicesReport> {
 }
 
 fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
+    #[cfg(not(target_os = "macos"))]
+    bail!("scribecli currently supports macOS only");
+
+    #[cfg(target_os = "macos")]
+    {
     let mut checks = Vec::new();
     let mut native_displays = Vec::new();
 
-    #[cfg(target_os = "macos")]
     {
         let store = ConfigStore::discover()?;
         match ensure_native_helper(&store.paths) {
@@ -1092,11 +1096,6 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
                 }),
             }
         }
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        bail!("scribecli currently supports macOS only");
     }
 
     match &config.whisper_cli_path {
@@ -1179,6 +1178,7 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
         native_displays,
         config: config.clone(),
     })
+    } // cfg(target_os = "macos")
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1679,11 +1679,12 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
     })
 }
 
-#[allow(unused_variables)]
 fn validate_record_prerequisites(config: &EffectiveConfig) -> Result<()> {
     #[cfg(not(target_os = "macos"))]
     bail!("scribecli currently supports macOS only");
 
+    #[cfg(target_os = "macos")]
+    {
     if config.input_mode == InputMode::MicSystemMix {
         ffmpeg_version(&config.ffmpeg_path)?;
     }
@@ -1707,6 +1708,7 @@ fn validate_record_prerequisites(config: &EffectiveConfig) -> Result<()> {
     }
 
     Ok(())
+    } // cfg(target_os = "macos")
 }
 
 fn validate_transcribe_prerequisites(config: &EffectiveConfig) -> Result<()> {
