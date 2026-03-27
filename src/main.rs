@@ -1016,6 +1016,7 @@ fn build_devices_report(config: &EffectiveConfig) -> Result<DevicesReport> {
 }
 
 fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
+    let _ = &config;
     #[cfg(not(target_os = "macos"))]
     bail!("scribecli currently supports macOS only");
 
@@ -1680,6 +1681,7 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
 }
 
 fn validate_record_prerequisites(config: &EffectiveConfig) -> Result<()> {
+    let _ = &config;
     #[cfg(not(target_os = "macos"))]
     bail!("scribecli currently supports macOS only");
 
