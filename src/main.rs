@@ -1456,6 +1456,7 @@ fn input_mode_cli_value(value: InputMode) -> &'static str {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn stop_requested_by_file(path: Option<&PathBuf>) -> bool {
     path.is_some_and(|value| value.exists())
 }
@@ -1678,6 +1679,7 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
     })
 }
 
+#[allow(unused_variables)]
 fn validate_record_prerequisites(config: &EffectiveConfig) -> Result<()> {
     #[cfg(not(target_os = "macos"))]
     bail!("scribecli currently supports macOS only");
@@ -1796,6 +1798,7 @@ fn slugify(input: &str) -> String {
     out.trim_matches('-').to_string()
 }
 
+#[cfg(target_os = "macos")]
 async fn wait_for_stop_signal() {
     #[cfg(unix)]
     {

@@ -11,7 +11,9 @@ use time::format_description::well_known::Rfc3339;
 #[derive(Debug, Clone)]
 pub struct SessionPaths {
     pub root_dir: PathBuf,
+    #[allow(dead_code)]
     pub system_audio_path: PathBuf,
+    #[allow(dead_code)]
     pub microphone_audio_path: PathBuf,
     pub raw_audio_path: PathBuf,
     pub transcript_path: PathBuf,
