@@ -1021,84 +1021,84 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
 
     #[cfg(target_os = "macos")]
     {
-    let mut checks = Vec::new();
-    let mut native_displays = Vec::new();
+        let mut checks = Vec::new();
+        let mut native_displays = Vec::new();
 
-    {
-        let store = ConfigStore::discover()?;
-        match ensure_native_helper(&store.paths) {
-            Ok(helper_path) => {
-                checks.push(DoctorCheck {
-                    name: "native_helper",
-                    ok: true,
-                    message: format!("compiled at {}", helper_path.display()),
-                });
+        {
+            let store = ConfigStore::discover()?;
+            match ensure_native_helper(&store.paths) {
+                Ok(helper_path) => {
+                    checks.push(DoctorCheck {
+                        name: "native_helper",
+                        ok: true,
+                        message: format!("compiled at {}", helper_path.display()),
+                    });
 
-                match native_doctor(&helper_path) {
-                    Ok(native) => {
-                        native_displays = native.displays.clone();
-                        checks.push(DoctorCheck {
-                            name: "screen_capture_access",
-                            ok: native.screen_capture_access,
-                            message: if native.screen_capture_access {
-                                "screen recording permission is granted".to_string()
-                            } else {
-                                "screen recording permission is not granted".to_string()
-                            },
-                        });
-                        checks.push(DoctorCheck {
-                            name: "native_displays",
-                            ok: !native.displays.is_empty(),
-                            message: format!(
-                                "found {} shareable display(s)",
-                                native.displays.len()
-                            ),
-                        });
-                        if config.input_mode == InputMode::MicSystemMix {
+                    match native_doctor(&helper_path) {
+                        Ok(native) => {
+                            native_displays = native.displays.clone();
                             checks.push(DoctorCheck {
-                                name: "microphone_capture",
-                                ok: native.microphone_capture_supported
-                                    && native.microphone_permission != "denied"
-                                    && native.microphone_permission != "restricted",
+                                name: "screen_capture_access",
+                                ok: native.screen_capture_access,
+                                message: if native.screen_capture_access {
+                                    "screen recording permission is granted".to_string()
+                                } else {
+                                    "screen recording permission is not granted".to_string()
+                                },
+                            });
+                            checks.push(DoctorCheck {
+                                name: "native_displays",
+                                ok: !native.displays.is_empty(),
                                 message: format!(
-                                    "microphone permission: {}; supported: {}",
-                                    native.microphone_permission,
-                                    native.microphone_capture_supported
+                                    "found {} shareable display(s)",
+                                    native.displays.len()
                                 ),
                             });
+                            if config.input_mode == InputMode::MicSystemMix {
+                                checks.push(DoctorCheck {
+                                    name: "microphone_capture",
+                                    ok: native.microphone_capture_supported
+                                        && native.microphone_permission != "denied"
+                                        && native.microphone_permission != "restricted",
+                                    message: format!(
+                                        "microphone permission: {}; supported: {}",
+                                        native.microphone_permission,
+                                        native.microphone_capture_supported
+                                    ),
+                                });
+                            }
                         }
+                        Err(error) => checks.push(DoctorCheck {
+                            name: "native_capture",
+                            ok: false,
+                            message: error.to_string(),
+                        }),
                     }
+                }
+                Err(error) => checks.push(DoctorCheck {
+                    name: "native_helper",
+                    ok: false,
+                    message: error.to_string(),
+                }),
+            }
+
+            if config.input_mode == InputMode::MicSystemMix {
+                match ffmpeg_version(&config.ffmpeg_path) {
+                    Ok(version) => checks.push(DoctorCheck {
+                        name: "ffmpeg_binary",
+                        ok: true,
+                        message: format!("used for post-capture audio mixing: {version}"),
+                    }),
                     Err(error) => checks.push(DoctorCheck {
-                        name: "native_capture",
+                        name: "ffmpeg_binary",
                         ok: false,
                         message: error.to_string(),
                     }),
                 }
             }
-            Err(error) => checks.push(DoctorCheck {
-                name: "native_helper",
-                ok: false,
-                message: error.to_string(),
-            }),
         }
 
-        if config.input_mode == InputMode::MicSystemMix {
-            match ffmpeg_version(&config.ffmpeg_path) {
-                Ok(version) => checks.push(DoctorCheck {
-                    name: "ffmpeg_binary",
-                    ok: true,
-                    message: format!("used for post-capture audio mixing: {version}"),
-                }),
-                Err(error) => checks.push(DoctorCheck {
-                    name: "ffmpeg_binary",
-                    ok: false,
-                    message: error.to_string(),
-                }),
-            }
-        }
-    }
-
-    match &config.whisper_cli_path {
+        match &config.whisper_cli_path {
         Some(path) => match whisper_version(path) {
             Ok(version) => checks.push(DoctorCheck {
                 name: "whisper_cli_binary",
@@ -1122,7 +1122,7 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
         }),
     }
 
-    match &config.whisper_model_path {
+        match &config.whisper_model_path {
         Some(path) if path.exists() => checks.push(DoctorCheck {
             name: "whisper_model_path",
             ok: true,
@@ -1142,21 +1142,21 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
         }),
     }
 
-    if let Err(error) = std::fs::create_dir_all(&config.artifacts_dir) {
-        checks.push(DoctorCheck {
-            name: "artifacts_dir",
-            ok: false,
-            message: error.to_string(),
-        });
-    } else {
-        checks.push(DoctorCheck {
-            name: "artifacts_dir",
-            ok: true,
-            message: format!("writable at {}", config.artifacts_dir.display()),
-        });
-    }
+        if let Err(error) = std::fs::create_dir_all(&config.artifacts_dir) {
+            checks.push(DoctorCheck {
+                name: "artifacts_dir",
+                ok: false,
+                message: error.to_string(),
+            });
+        } else {
+            checks.push(DoctorCheck {
+                name: "artifacts_dir",
+                ok: true,
+                message: format!("writable at {}", config.artifacts_dir.display()),
+            });
+        }
 
-    checks.push(DoctorCheck {
+        checks.push(DoctorCheck {
         name: "capture_configuration",
         ok: true,
         message: match config.input_mode {
@@ -1169,15 +1169,15 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
         },
     });
 
-    let ok = checks.iter().all(|check| check.ok);
+        let ok = checks.iter().all(|check| check.ok);
 
-    Ok(DoctorReport {
-        object: "doctor_report",
-        ok,
-        checks,
-        native_displays,
-        config: config.clone(),
-    })
+        Ok(DoctorReport {
+            object: "doctor_report",
+            ok,
+            checks,
+            native_displays,
+            config: config.clone(),
+        })
     } // cfg(target_os = "macos")
 }
 
@@ -1685,29 +1685,28 @@ fn validate_record_prerequisites(config: &EffectiveConfig) -> Result<()> {
 
     #[cfg(target_os = "macos")]
     {
-    if config.input_mode == InputMode::MicSystemMix {
-        ffmpeg_version(&config.ffmpeg_path)?;
-    }
+        if config.input_mode == InputMode::MicSystemMix {
+            ffmpeg_version(&config.ffmpeg_path)?;
+        }
 
-    let whisper_cli_path = config.whisper_cli_path.as_ref().ok_or_else(|| {
+        let whisper_cli_path = config.whisper_cli_path.as_ref().ok_or_else(|| {
         anyhow!(
             "whisper_cli_path is not configured; use a bundled release or install whisper-cpp, then run `scribecli setup`"
         )
     })?;
-    whisper_version(whisper_cli_path)?;
+        whisper_version(whisper_cli_path)?;
 
-    let whisper_model_path = config
-        .whisper_model_path
-        .as_ref()
-        .ok_or_else(|| anyhow!("whisper_model_path is not configured; run `scribecli setup`"))?;
-    if !whisper_model_path.exists() {
-        bail!(
-            "whisper model path does not exist: {}; run `scribecli setup` to create a managed model",
-            whisper_model_path.display()
-        );
-    }
+        let whisper_model_path = config.whisper_model_path.as_ref().ok_or_else(|| {
+            anyhow!("whisper_model_path is not configured; run `scribecli setup`")
+        })?;
+        if !whisper_model_path.exists() {
+            bail!(
+                "whisper model path does not exist: {}; run `scribecli setup` to create a managed model",
+                whisper_model_path.display()
+            );
+        }
 
-    Ok(())
+        Ok(())
     } // cfg(target_os = "macos")
 }
 
