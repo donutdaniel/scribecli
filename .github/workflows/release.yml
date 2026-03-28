@@ -125,8 +125,6 @@ jobs:
             version "${VERSION}"
             license "MIT"
 
-            bottle :unneeded
-
             on_macos do
               on_arm do
                 url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-aarch64-apple-darwin.tar.gz"
