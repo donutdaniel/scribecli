@@ -104,7 +104,7 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Update Homebrew formula
+      - name: Update Homebrew cask
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -118,39 +118,35 @@ jobs:
           git clone "https://x-access-token:${GH_TOKEN}@github.com/donutdaniel/homebrew-tap.git"
           cd homebrew-tap
 
-          cat > Formula/scribecli.rb <<-FORMULA
-          class Scribecli < Formula
-            desc "Local meeting recording and transcription CLI for macOS"
-            homepage "https://github.com/donutdaniel/scribecli"
+          mkdir -p Casks
+          cat > Casks/scribecli.rb <<-CASK
+          cask "scribecli" do
             version "${VERSION}"
             license "MIT"
 
-            on_macos do
-              on_arm do
-                url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-aarch64-apple-darwin.tar.gz"
-                sha256 "${SHA_ARM}"
-              end
-              on_intel do
-                url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-x86_64-apple-darwin.tar.gz"
-                sha256 "${SHA_X86_MAC}"
-              end
+            on_arm do
+              sha256 "${SHA_ARM}"
+              url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-aarch64-apple-darwin.tar.gz"
+            end
+            on_intel do
+              sha256 "${SHA_X86_MAC}"
+              url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-x86_64-apple-darwin.tar.gz"
             end
 
-            def install
-              bin.install "bin/scribecli"
-              (libexec/"scribecli").install "libexec/scribecli/whisper-cli"
-            end
+            name "scribecli"
+            desc "Local meeting recording and transcription CLI for macOS"
+            homepage "https://github.com/donutdaniel/scribecli"
 
-            test do
-              assert_match "scribecli", shell_output("#{bin}/scribecli --version")
-            end
+            binary "bin/scribecli"
+            binary "libexec/scribecli/whisper-cli", target: "#{HOMEBREW_PREFIX}/libexec/scribecli/whisper-cli"
           end
-          FORMULA
+          CASK
 
-          sed -i 's/^          //' Formula/scribecli.rb
+          sed -i 's/^          //' Casks/scribecli.rb
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/scribecli.rb
+          git rm -f Formula/scribecli.rb || true
+          git add Casks/scribecli.rb
           git commit -m "Update scribecli to ${VERSION}"
           git push
