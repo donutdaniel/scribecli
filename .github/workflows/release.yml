@@ -66,7 +66,7 @@ jobs:
           codesign --force --sign - "${package_dir}/bin/${{ matrix.binary_name }}" >/dev/null 2>&1 || true
           cp "dist/whisper-cli" "${package_dir}/libexec/scribecli/whisper-cli"
           cp README.md LICENSE "${package_dir}/"
-          tar -C dist -czf "dist/$archive" "$(basename "$package_dir")"
+          tar -C "${package_dir}" -czf "dist/$archive" .
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
