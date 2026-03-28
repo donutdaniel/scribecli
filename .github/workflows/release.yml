@@ -119,33 +119,35 @@ jobs:
           cd homebrew-tap
 
           cat > Formula/scribecli.rb << FORMULA
-          class Scribecli < Formula
-            desc "Local meeting recording and transcription CLI for macOS"
-            homepage "https://github.com/donutdaniel/scribecli"
-            version "${VERSION}"
-            license "MIT"
+class Scribecli < Formula
+  desc "Local meeting recording and transcription CLI for macOS"
+  homepage "https://github.com/donutdaniel/scribecli"
+  version "${VERSION}"
+  license "MIT"
 
-            on_macos do
-              on_arm do
-                url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-aarch64-apple-darwin.tar.gz"
-                sha256 "${SHA_ARM}"
-              end
-              on_intel do
-                url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-x86_64-apple-darwin.tar.gz"
-                sha256 "${SHA_X86_MAC}"
-              end
-            end
+  bottle :unneeded
 
-            def install
-              bin.install "bin/scribecli"
-              (libexec/"scribecli").install "libexec/scribecli/whisper-cli"
-            end
+  on_macos do
+    on_arm do
+      url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-aarch64-apple-darwin.tar.gz"
+      sha256 "${SHA_ARM}"
+    end
+    on_intel do
+      url "https://github.com/donutdaniel/scribecli/releases/download/${TAG}/scribecli-${TAG}-x86_64-apple-darwin.tar.gz"
+      sha256 "${SHA_X86_MAC}"
+    end
+  end
 
-            test do
-              assert_match "scribecli", shell_output("#{bin}/scribecli --version")
-            end
-          end
-          FORMULA
+  def install
+    bin.install "bin/scribecli"
+    (libexec/"scribecli").install "libexec/scribecli/whisper-cli"
+  end
+
+  test do
+    assert_match "scribecli", shell_output("#{bin}/scribecli --version")
+  end
+end
+FORMULA
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
