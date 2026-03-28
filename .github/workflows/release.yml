@@ -122,7 +122,6 @@ jobs:
           cat > Casks/scribecli.rb <<-CASK
           cask "scribecli" do
             version "${VERSION}"
-            license "MIT"
 
             on_arm do
               sha256 "${SHA_ARM}"
