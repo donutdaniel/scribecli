@@ -49,7 +49,8 @@ impl AppPaths {
 pub enum InputMode {
     #[default]
     MicSystemMix,
-    SingleDevice,
+    Microphone,
+    SystemAudio,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,8 +157,9 @@ impl ConfigFile {
             ConfigKey::InputMode => {
                 self.input_mode = match raw {
                     "mic_system_mix" => InputMode::MicSystemMix,
-                    "single_device" => InputMode::SingleDevice,
-                    _ => bail!("input mode must be `mic_system_mix` or `single_device`"),
+                    "microphone" => InputMode::Microphone,
+                    "system_audio" => InputMode::SystemAudio,
+                    _ => bail!("input mode must be `mic_system_mix`, `microphone`, or `system_audio`"),
                 };
             }
             ConfigKey::DisplayId => {

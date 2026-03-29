@@ -222,7 +222,7 @@ struct CleanupArgs {
 
 #[derive(Args, Clone)]
 #[command(
-    after_help = "Examples:\n  scribecli record\n  scribecli --output json record --duration-seconds 30\n  scribecli record --input-mode single-device\n  scribecli record --input-mode mic-system-mix\n  scribecli record --display-id 1 --duration-seconds 15"
+    after_help = "Examples:\n  scribecli record\n  scribecli --output json record --duration-seconds 30\n  scribecli record --input-mode microphone\n  scribecli record --input-mode mic-system-mix\n  scribecli record --input-mode system-audio\n  scribecli record --display-id 1 --duration-seconds 15"
 )]
 struct RecordArgs {
     /// Override the configured input mode for this session.
@@ -237,7 +237,7 @@ struct RecordArgs {
     /// Override the configured system capture device name.
     #[arg(long)]
     system_device: Option<String>,
-    /// Override the configured single input device for single-device mode.
+    /// Override the configured single input device for microphone mode.
     #[arg(long)]
     single_input_device: Option<String>,
     /// Override the partial chunk interval in seconds.
@@ -462,7 +462,7 @@ async fn run_start(args: &RecordArgs) -> Result<RecordingStartedReport> {
         if native_status.screen_capture_access && native_status.displays.is_empty() {
             bail!("no shareable displays are available for native capture");
         }
-        if config.input_mode == InputMode::MicSystemMix
+        if config.input_mode != InputMode::SystemAudio
             && (!native_status.microphone_capture_supported
                 || native_status.microphone_permission == "denied"
                 || native_status.microphone_permission == "restricted")
@@ -1055,7 +1055,7 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
                                     native.displays.len()
                                 ),
                             });
-                            if config.input_mode == InputMode::MicSystemMix {
+                            if config.input_mode != InputMode::SystemAudio {
                                 checks.push(DoctorCheck {
                                     name: "microphone_capture",
                                     ok: native.microphone_capture_supported
@@ -1161,7 +1161,10 @@ fn build_doctor_report(config: &EffectiveConfig) -> Result<DoctorReport> {
         name: "capture_configuration",
         ok: true,
         message: match config.input_mode {
-            InputMode::SingleDevice => {
+            InputMode::Microphone => {
+                "native ScreenCaptureKit capture will record microphone audio".to_string()
+            }
+            InputMode::SystemAudio => {
                 "native ScreenCaptureKit capture will record system audio".to_string()
             }
             InputMode::MicSystemMix => {
@@ -1453,7 +1456,8 @@ fn default_transcript_path_for_audio(audio_path: &Path) -> PathBuf {
 fn input_mode_cli_value(value: InputMode) -> &'static str {
     match value {
         InputMode::MicSystemMix => "mic-system-mix",
-        InputMode::SingleDevice => "single-device",
+        InputMode::Microphone => "microphone",
+        InputMode::SystemAudio => "system-audio",
     }
 }
 
@@ -1502,7 +1506,7 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
     if native_status.screen_capture_access && native_status.displays.is_empty() {
         bail!("no shareable displays are available for native capture");
     }
-    if config.input_mode == InputMode::MicSystemMix
+    if config.input_mode != InputMode::SystemAudio
         && (!native_status.microphone_capture_supported
             || native_status.microphone_permission == "denied"
             || native_status.microphone_permission == "restricted")
@@ -1561,14 +1565,15 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
 
     let started_wall = now_rfc3339();
     let started_instant = Instant::now();
+    let capture_microphone = config.input_mode != InputMode::SystemAudio;
     let request = NativeRecordRequest {
         system_audio_path: session.system_audio_path.clone(),
-        microphone_audio_path: if config.input_mode == InputMode::MicSystemMix {
+        microphone_audio_path: if capture_microphone {
             Some(session.microphone_audio_path.clone())
         } else {
             None
         },
-        capture_microphone: config.input_mode == InputMode::MicSystemMix,
+        capture_microphone,
         duration_seconds: args.duration_seconds,
         display_id: config.display_id,
     };
@@ -1632,19 +1637,30 @@ async fn run_record_native(config: &EffectiveConfig, args: &RecordArgs) -> Resul
             })),
         )?;
     } else {
-        std::fs::copy(&session.system_audio_path, &session.raw_audio_path).with_context(|| {
+        let source_path = match config.input_mode {
+            InputMode::Microphone => {
+                let path = session.microphone_audio_path.as_path();
+                if !path.exists() {
+                    bail!("native microphone capture was requested but no microphone audio file was produced");
+                }
+                path
+            }
+            _ => session.system_audio_path.as_path(),
+        };
+        std::fs::copy(source_path, &session.raw_audio_path).with_context(|| {
             format!(
                 "failed to copy {} to {}",
-                session.system_audio_path.display(),
+                source_path.display(),
                 session.raw_audio_path.display()
             )
         })?;
         event_logger.append(
             "audio_copied",
-            "copied native system audio into final session audio",
+            format!("copied native {} audio into final session audio",
+                if config.input_mode == InputMode::Microphone { "microphone" } else { "system" }),
             Some(json!({
                 "audio_path": session.raw_audio_path,
-                "system_audio_path": session.system_audio_path,
+                "source_audio_path": source_path,
             })),
         )?;
     }
@@ -1883,7 +1899,7 @@ exit 0
             whisper_model_path: Some(model_path),
             artifacts_dir: temp.path().join("artifacts"),
             partial_interval_seconds: 15,
-            input_mode: InputMode::SingleDevice,
+            input_mode: InputMode::Microphone,
             display_id: None,
             microphone_device: None,
             system_device: None,
@@ -1920,7 +1936,7 @@ exit 0
             whisper_model_path: Some(model_path),
             artifacts_dir,
             partial_interval_seconds: 15,
-            input_mode: InputMode::SingleDevice,
+            input_mode: InputMode::Microphone,
             display_id: None,
             microphone_device: None,
             system_device: None,
@@ -1961,7 +1977,7 @@ exit 0
         };
 
         let args = RecordArgs {
-            input_mode: Some(InputMode::SingleDevice),
+            input_mode: Some(InputMode::Microphone),
             display_id: Some(123),
             microphone_device: None,
             system_device: None,
@@ -1978,7 +1994,7 @@ exit 0
         };
 
         let applied = apply_record_overrides(base, &args);
-        assert_eq!(applied.input_mode, InputMode::SingleDevice);
+        assert_eq!(applied.input_mode, InputMode::Microphone);
         assert_eq!(applied.display_id, Some(123));
         assert_eq!(applied.partial_interval_seconds, 3);
         assert_eq!(applied.artifacts_dir, PathBuf::from("/tmp/custom"));
@@ -1990,7 +2006,7 @@ exit 0
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn validate_record_prerequisites_skips_ffmpeg_for_native_single_device() {
+    fn validate_record_prerequisites_skips_ffmpeg_for_native_microphone() {
         let temp = tempdir().unwrap();
         let whisper_path = temp.path().join("whisper-cli");
         let model_path = temp.path().join("model.bin");
@@ -2003,7 +2019,7 @@ exit 0
             whisper_model_path: Some(model_path),
             artifacts_dir: temp.path().join("artifacts"),
             partial_interval_seconds: 15,
-            input_mode: InputMode::SingleDevice,
+            input_mode: InputMode::Microphone,
             display_id: None,
             microphone_device: None,
             system_device: None,
